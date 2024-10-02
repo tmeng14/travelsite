@@ -1,7 +1,10 @@
 # import flask module from Flask package
-from flask import Flask 
+from flask import Flask, render_template 
 from flask_bootstrap import Bootstrap5
 from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager
+from flask_bcrypt import Bcrypt
+import datetime
 
 #place this outside as it needs to be imported in models.py
 db=SQLAlchemy()
@@ -25,6 +28,17 @@ def create_app():
     UPLOAD_FOLDER = '/static/image'
     app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
     
+     # initialise the login manager
+    login_manager = LoginManager()
+    login_manager.login_view = 'auth.login'
+    login_manager.init_app(app)
+
+    # create a user loader function takes userid and returns User
+    from .models import User  # importing here to avoid circular references
+    @login_manager.user_loader
+    def load_user(user_id):
+        return db.session.scalar(db.select(User).where(User.id==user_id))
+    
     # add Blueprints
     from . import views
     app.register_blueprint(views.mainbp)
@@ -32,5 +46,10 @@ def create_app():
     app.register_blueprint(destinations.destbp)
     from . import auth
     app.register_blueprint(auth.authbp)
+
+    @app.errorhandler(404) 
+    # inbuilt function which takes error as parameter 
+    def not_found(e): 
+      return render_template("404.html", error=e)
 
     return app
